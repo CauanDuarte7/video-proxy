@@ -1,18 +1,22 @@
-import fetch from "node-fetch";
+import ytdl from "@distube/ytdl-core";
 
 export default async function handler(req, res) {
-  const videoUrl = req.query.url;
-  if (!videoUrl) return res.status(400).json({ error: "URL ausente." });
+  const { url } = req.query;
+
+  if (!url) {
+    return res.status(400).json({ error: "URL não fornecida" });
+  }
 
   try {
-    const response = await fetch(videoUrl);
-    if (!response.ok) throw new Error("Erro ao acessar o vídeo.");
+    const info = await ytdl.getInfo(url);
+    const format = ytdl.chooseFormat(info.formats, { quality: "highest" });
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    res.setHeader("Content-Disposition", `attachment; filename="video.mp4"`);
     res.setHeader("Content-Type", "video/mp4");
-    res.setHeader("Content-Disposition", 'attachment; filename="video.mp4"');
-    res.send(buffer);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+
+    ytdl(url, { format }).pipe(res);
+  } catch (error) {
+    console.error("Erro no download:", error);
+    res.status(500).json({ error: "Falha ao baixar o vídeo" });
   }
 }
